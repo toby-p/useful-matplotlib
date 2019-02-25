@@ -20,15 +20,15 @@ def strip_trailing_zeroes(s):
     else:
         return s
 
-def calc_y_lims(source_data, minmax_buffer=True, ylim0=False):
+def calc_y_lims(source_data, minmax_buffer=True, ymin=None, ymax=None):
     """Determine y-axis limits for a Matplotlib figure axis.
 
     Args:
         source_data (pandas DataFrame): source data of the chart.
         minmax_buffer (bool): whether or not to include a whitespace buffer in
             the chart area around the top and bottom of the line plot.
-        ylim0 (bool): if True force the minimum of the y-axis to zero regardless
-            of the actual `datamin` value.
+        ymin, ymax (float): if supplied manually sets the min/max y-axis limits
+            regardless of the values in `source_data`.
     """
     datamin, datamax = source_data.min().min(), source_data.max().max(),
     diff = datamax-datamin
@@ -36,14 +36,23 @@ def calc_y_lims(source_data, minmax_buffer=True, ylim0=False):
     interval = 10**mag
     while diff-interval<interval:
         interval/=10
-    ymin = datamin-(datamin%interval)
-    if minmax_buffer and math.isclose(ymin, datamin):
-        ymin-=interval
-    if ylim0:
-        ymin = 0
-    ymax = datamax - (datamax%interval)+interval
-    if minmax_buffer and math.isclose(ymax, datamax):
-        ymax+=interval
+
+    # Set the axis minimum:
+    if ymin:
+        y_min = ymin
+    else:
+        y_min = datamin-(datamin%interval)
+        if minmax_buffer and math.isclose(y_min, datamin):
+            y_min-=interval
+
+    # Set the axis maximum:
+    if ymax:
+        y_max = ymax
+    else:
+        y_max = datamax - (datamax%interval)+interval
+        if minmax_buffer and math.isclose(y_max, datamax):
+            y_max+=interval
+
     return ymin, ymax
 
 def list_decimal_precision(l):
@@ -116,7 +125,7 @@ def reduce_mpl_visible_yticks(ax, max_n_ticks=5):
 
 def tune_mpl_yaxis(ax, source_data, percent_format=False, currency_format=False,
                    max_n_ticks=None, trailing_zeroes=False, minmax_buffer=True,
-                   ylim0=False, fontsize=12):
+                   ymin=None, ymax=None, fontsize=12):
     """Fine-tune the display format of a Matplotlib y-axis.
 
     Args:
@@ -132,11 +141,11 @@ def tune_mpl_yaxis(ax, source_data, percent_format=False, currency_format=False,
             formatted numbers (e.g. `1.0` becomes `1`).
         minmax_buffer (bool): if True make sure there is a buffer of whitespace
             around the top and bottom of the chart.
-        ylim0 (bool): if True force the minimum of the y-axis to zero regardless
-            of the minimum datapoint in the source.
+        ymin, ymax (float): if supplied manually override the y-axis limits
+            regardless of the datapoints in the source.
         fontsize (float): size of the y-axis label font.
     """
-    new_lims = calc_y_lims(source_data, minmax_buffer, ylim0)
+    new_lims = calc_y_lims(source_data, minmax_buffer, ymin, ymax)
     ax.set_ylim(new_lims)
     if max_n_ticks:
         ticks = reduce_mpl_visible_yticks(ax, max_n_ticks)
