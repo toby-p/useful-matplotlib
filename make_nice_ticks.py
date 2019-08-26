@@ -1,12 +1,12 @@
 
 import numpy as np
 
-# Nice-looking human-interpretable tick intervals which will be allowed on the plot:
-nice_intervals = np.array([1, 2, 5, 10, 25, 50, 100])
+# Nice-looking human-interpretable tick intervals which will be allowed:
+nice_intervals = [0.1, 0.2, 0.25, 0.5]
 
 
 def make_ticks_nicer(ax, axis="y", min_buffer=0.025, max_buffer=0.025,
-                     max_n_ticks=5, buffer_below_zero=False):
+                     n_ticks=5, buffer_below_zero=False):
     """Brute force approach to making Matplotlib plots have `nice` looking,
     human-readable axis ticks.
 
@@ -17,7 +17,7 @@ def make_ticks_nicer(ax, axis="y", min_buffer=0.025, max_buffer=0.025,
             axis to add as a whitespace buffer before the minimum datapoint.
         max_buffer (float): fraction of the total range of datapoints on the
             axis to add as a whitespace buffer after the maximum datapoint.
-        max_n_ticks (int): the absolute maximum number of generated ticks to
+        n_ticks (int): the absolute maximum number of generated ticks to
             return, including the axis minimum and maximum.
         buffer_below_zero (bool): if False and minimum plotted datapoint is >= 0
             then the new axis minimum will not be set below zero.
@@ -31,7 +31,6 @@ def make_ticks_nicer(ax, axis="y", min_buffer=0.025, max_buffer=0.025,
 
     # Apply the buffer zones around the data:
     data_range = datamax - datamin
-    old_min, old_max = datamin, datamax
     if min_buffer:
         new_datamin = datamin - (data_range * min_buffer)
         if new_datamin < 0 <= datamin and not buffer_below_zero:
@@ -42,26 +41,39 @@ def make_ticks_nicer(ax, axis="y", min_buffer=0.025, max_buffer=0.025,
 
     # Use the real gap between the min/max datapoints to determine the range of
     # 'nice' tick gaps that we should start generating ticks for:
-    abs_gap = (datamax - datamin) / max_n_ticks
-    test_gaps = list()
+    abs_gap = abs(datamax - datamin) / n_ticks
+
+    closest_ticks = {i: abs(abs_gap - i) for i in nice_intervals}
+    closest_two = sorted(closest_ticks.values())[:2]
+    closest_ticks = {k: v for k, v in closest_ticks.items() if v in closest_two}
+
     intervals = nice_intervals
-    last_checked = None
-    while True:
-        tick_gaps = [i for i in intervals if abs_gap/2 < i < abs_gap*2]
-        if len(tick_gaps) == len(intervals):
-            if last_checked == intervals:
-                break
-            intervals *= 10
-        elif not len(tick_gaps):
-            intervals /= 10
+    while True:  # Try bigger/smaller tick intervals to see if can get closer to abs_gap:
+        bigger = [i * 10 for i in intervals]
+        b_closest_ticks = {i: abs(abs_gap - i) for i in bigger}
+        b_closest_ticks = {**b_closest_ticks, **closest_ticks}
+        b_closest_two = sorted(b_closest_ticks.values())[:2]
+
+        smaller = [i / 10 for i in intervals]
+        s_closest_ticks = {i: abs(abs_gap - i) for i in smaller}
+        s_closest_ticks = {**s_closest_ticks, **closest_ticks}
+        s_closest_two = sorted(s_closest_ticks.values())[:2]
+
+        if min(b_closest_two) < min(closest_two):
+            closest_two = b_closest_two
+            closest_ticks = {k: v for k, v in b_closest_ticks.items() if v in closest_two}
+            intervals = bigger
+        elif min(s_closest_two) < min(closest_two):
+            closest_two = s_closest_two
+            closest_ticks = {k: v for k, v in s_closest_ticks.items() if v in closest_two}
+            intervals = smaller
         else:
             break
-        last_checked = intervals
 
     # Iterate through each matching tick gap, create a set of ticks that spans the min
     # and max data points, and save to the dictionary:
     generated_ticks = dict()
-    for gap in tick_gaps:
+    for gap in closest_ticks.keys():
         first_tick = (datamin // gap) * gap
         new_ticks = [first_tick]
         # Keep adding ticks until the tick max is greater than the data max:
@@ -74,12 +86,12 @@ def make_ticks_nicer(ax, axis="y", min_buffer=0.025, max_buffer=0.025,
         generated_ticks[gap] = new_ticks
 
     # Calculate the length of each generated set of ticks, and find the set(s)
-    # which are closest to the `max_n_ticks` arg:
-    closeness_dict = {k: abs(len(v) - max_n_ticks) for k, v in generated_ticks.items()}
+    # which are closest to the `n_ticks` arg:
+    closeness_dict = {k: abs(len(v) - n_ticks) for k, v in generated_ticks.items()}
     closest = min(closeness_dict.values())
     closest = max([k for k, v in closeness_dict.items() if v == closest])
     ticks = generated_ticks[closest]
 
-    # Add the ticks to the axes and use the min/max to set axis limits:
+    # Add the ticks to the plot axis:
     eval(f"ax.set_{axis}ticks(ticks)")
     eval(f"ax.set_{axis}lim(ticks[0], ticks[-1])")
