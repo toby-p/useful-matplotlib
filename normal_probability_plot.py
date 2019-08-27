@@ -18,11 +18,12 @@ def normal_probability_plot(x, n_bins=20, random_seed=None, **kwargs):
     # Standardize x to the normal distribution:
     x = sorted((x - x.mean()) / np.std(x))
 
-    # Create a random truly norma distribution of the same length:
+    # Create a random normal distribution of the same length:
     if random_seed:
         np.random.seed(random_seed)
     normal = sorted(np.random.normal(0, 1, len(x)))
 
+    # Create the other plots:
     ax[1].hist(x, n_bins, alpha=1)
     min_xy = min(normal + x)
     max_xy = max(normal + x)
