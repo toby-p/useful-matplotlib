@@ -2,6 +2,12 @@
 from bokeh.palettes import viridis
 
 
+neon_5 = ["#4deeea", "#74ee15", "#ffe700", "#f000ff", "#001eff"]
+itfc_blue = "#1919A3"
+spine_color = "#b3b3b3"
+tick_color = "#737373"
+
+
 def make_colormap(labels, color_func=viridis, shuffle=False):
     """Make a color map of artist labels to HexColor.
 
@@ -25,3 +31,5 @@ def make_colormap(labels, color_func=viridis, shuffle=False):
     else:
         d = dict(zip(labels, colors))
     return d
+
+
